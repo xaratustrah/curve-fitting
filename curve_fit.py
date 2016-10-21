@@ -11,7 +11,7 @@ Usage:
 Xaratustrah
 
 
-thanks to:
+Fitting hints thanks to:
 
 http://mesa.ac.nz/2011/10/python-workshop-i-fitting-a-single-symmetric-peak/
 http://stackoverflow.com/a/14460456/5177935
@@ -34,12 +34,15 @@ def read_data(filename):
     str = str.replace('ProfileReadoutTime_yyyyMMdd_hhmmss_zzz', 'ProfileReadoutStartTime')
     xml_tree_root = et.fromstring(str)
 
-    i = 0
+    data_array = np.array([])
     for elem in xml_tree_root.iter(tag='ProfileData'):
         b = np.genfromtxt(BytesIO(elem.text.encode()), delimiter=";", autostrip=True)
-        # here comes the actual calculation instead of break, for every column of data
-        break
-    return b
+        data_array = np.append(data_array, b[:-1])  # there is one undefined point at the end
+
+    data_matrix = np.reshape(data_array, (int(np.shape(data_array)[0] / 1280), 1280))
+    data_matrix_mean = np.mean(data_matrix, axis=0)
+
+    return data_matrix_mean, data_matrix, data_array
 
 
 # fit function
@@ -48,13 +51,19 @@ def gauss_function(x, *p):
     return A * np.exp(-(x - mu) ** 2 / (2. * sigma ** 2))
 
 
-def fit_and_plot(filename):
-    y = read_data(filename)[:-1]  # there is one undefined point at the end
+def fit_and_plot(filename, range, sigma_estimate):
+    filename_base = os.path.basename(filename)
+    filename_wo_ext = os.path.splitext(filename)[0]
+
+    y, _, _ = read_data(filename)
     x = np.arange(len(y))
 
+    # Estimate for mean and sigma
+    mean = y.argmax()
+
     # defining the 'background' part of the spectrum
-    ind_bg_low = (x > min(x)) & (x < 450)
-    ind_bg_high = (x > 700.0) & (x < max(x))
+    ind_bg_low = (x > min(x)) & (x < mean - range)
+    ind_bg_high = (x > mean + range) & (x < max(x))
 
     x_bg = np.concatenate((x[ind_bg_low], x[ind_bg_high]))
     y_bg = np.concatenate((y[ind_bg_low], y[ind_bg_high]))
@@ -62,24 +71,19 @@ def fit_and_plot(filename):
     # fitting the background to a line
     m, c = np.polyfit(x_bg, y_bg, 1)
 
-    # removing fitted background
+    # subtract fitted background
     background = m * x + c
     y_bg_corr = y - background
 
-    # Estimate for mean and sigma
-    mean = y_bg_corr.argmax()
-    sigma = 100
-
     # cut the region
-    x_cut = x[mean - 300:mean + 300]
-    y_cut = y_bg_corr[mean - 300:mean + 300]
+    x_cut = x[mean - range:mean + range]
+    y_cut = y_bg_corr[mean - range:mean + range]
 
     # Try to fit the result
-    popt, pcov = curve_fit(gauss_function, x_cut, y_cut, p0=[1, mean, sigma])
+    popt, pcov = curve_fit(gauss_function, x_cut, y_cut, p0=[1, mean, sigma_estimate])
 
-    mean = popt[1]
-    sigma = popt[2]
-    area = sum(y_cut)
+    # Get the area
+    area = sum(gauss_function(x, *popt))
 
     # Plot with original data
     fig = plt.figure()
@@ -88,8 +92,8 @@ def fit_and_plot(filename):
     ax.plot(x, y_bg_corr, 'g,', label='Data-BG')
     ax.plot(x_cut, y_cut, 'b', label='Cut')
     ax.plot(x, gauss_function(x, *popt), 'r', label='Fit')
-    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(mean, sigma, area))
-    ax.set_title(os.path.basename(filename))
+    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(mean, sigma_estimate, area))
+    ax.set_title(filename_base)
 
     # Now add the legend with some customizations.
     legend = ax.legend(loc='upper right', shadow=False)
@@ -99,14 +103,13 @@ def fit_and_plot(filename):
         label.set_fontsize('small')
 
     plt.grid()
-    filename_wo_ext = os.path.splitext(filename)[0]
     plt.savefig('{}.pdf'.format(filename_wo_ext))
-    print(' '.join(map(str, popt)), area)
+    print(filename_base, ' '.join(map(str, popt)), area)
 
 
 def main():
     for file in sys.argv[1:]:
-        fit_and_plot(file)
+        fit_and_plot(file, 200, 100)
 
 
 # -------------
