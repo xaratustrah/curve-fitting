@@ -45,13 +45,67 @@ def read_data(filename):
     return data_matrix_mean, data_matrix, data_array
 
 
-# fit function
+def fit_function(x, *p):
+    """
+    Line + Gaussian
+    """
+    A0, A1, A2, B2, C2 = p
+    return A0 + A1 * x + A2 * np.exp(-(x - B2) ** 2 / (2. * C2 ** 2))
+
+
+def fit_and_plot(filename, range, sigma_estimate):
+    filename_base = os.path.basename(filename)
+    filename_wo_ext = os.path.splitext(filename)[0]
+
+    y, _, _ = read_data(filename)
+    x = np.arange(len(y))
+
+    # Estimate for mean and sigma
+    mean = y.argmax()
+    sigma = 100
+    offset = y[mean - 250]
+    slope = 1
+    amp = 1
+
+    # defining the fitting region
+    data_cut = (x > mean - 250) & (x < mean + 250)
+
+    # fit
+    popt, pcov = curve_fit(fit_function, x[data_cut], y[data_cut], p0=[offset, slope, amp, mean, sigma])
+
+    # Get the area
+    area = sum(fit_function(x, *popt))
+
+    # plot with original data
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.plot(x, y, 'k,', label='Data')
+    ax.plot(x[data_cut], fit_function(x[data_cut], *popt), 'r', label='Fit')
+    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(mean, sigma_estimate, area))
+    ax.set_title(filename_base)
+
+    # Now add the legend with some customizations.
+    legend = ax.legend(loc='upper right', shadow=False)
+
+    # Set legend fontsize
+    for label in legend.get_texts():
+        label.set_fontsize('small')
+
+    plt.grid()
+    plt.savefig('{}.pdf'.format(filename_wo_ext))
+    print(filename_base, ' '.join(map(str, popt)), area)
+
+
+## ====================================
+# old fit procedures, not used
+## ====================================
+
 def gauss_function(x, *p):
     A, mu, sigma = p
     return A * np.exp(-(x - mu) ** 2 / (2. * sigma ** 2))
 
 
-def fit_and_plot(filename, range, sigma_estimate):
+def fit_and_plot2(filename, range, sigma_estimate):
     filename_base = os.path.basename(filename)
     filename_wo_ext = os.path.splitext(filename)[0]
 
