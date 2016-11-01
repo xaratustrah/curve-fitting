@@ -47,10 +47,9 @@ def read_data(filename):
 
 def fit_function(x, *p):
     """
-    Line + Gaussian
+    Line + 1 Gaussian
     """
-    A0, A1, A2, B2, C2 = p
-    return A0 + A1 * x + A2 * np.exp(-(x - B2) ** 2 / (2. * C2 ** 2))
+    return p[0] + p[1] * x + p[2] * np.exp(-(x - p[3]) ** 2 / (2. * p[4] ** 2))
 
 
 def fit_and_plot(filename, range, sigma_estimate):
@@ -66,12 +65,12 @@ def fit_and_plot(filename, range, sigma_estimate):
     offset = y[mean - 250]
     slope = 1
     amp = 1
-
+    p = [offset, slope, amp, mean, sigma]
     # defining the fitting region
     data_cut = (x > mean - 250) & (x < mean + 250)
 
     # fit
-    popt, pcov = curve_fit(fit_function, x[data_cut], y[data_cut], p0=[offset, slope, amp, mean, sigma])
+    popt, pcov = curve_fit(fit_function, x[data_cut], y[data_cut], p0=p)
 
     # Get the area
     area = sum(fit_function(x, *popt))
