@@ -19,11 +19,7 @@ http://stackoverflow.com/a/11507723/5177935
 
 """
 
-import matplotlib.pyplot as plt
-import numpy as np
-import xml.etree.ElementTree as et
-from io import BytesIO
-import sys, os
+from iqtools import *
 from scipy.optimize import curve_fit
 
 
