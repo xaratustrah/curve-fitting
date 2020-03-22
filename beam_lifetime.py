@@ -31,6 +31,7 @@ def fit_and_plot(filename):
     xx, yy, zz = iq.get_spectrogram(nframes=nframes, lframes=lframes)
 
     xa, ya, za = iq.get_averaged_spectrum(xx, yy, zz, 10)
+    delta_t = float(ya[2, :1] - ya[1, :1])
 
     dn = zz[1, :].argmax() - 20
     up = zz[1, :].argmax() + 20
@@ -46,7 +47,7 @@ def fit_and_plot(filename):
 
     y = peaks
     #y = chpwr
-    x = np.arange(len(y))
+    x = np.arange(len(y)) * delta_t
     p = [2e-7, 1.2]
 
     popt, pcov = curve_fit(fit_function, x, y, p0=p)
@@ -66,8 +67,9 @@ def fit_and_plot(filename):
     # Set legend fontsize
     for label in legend.get_texts():
         label.set_fontsize('small')
+    plt.tight_layout()
     plt.savefig('{}.png'.format(filename_wo_ext))
-    print(filename_base, 't=', popt[1], 't1/2=', popt[1] * np.log(2))
+    print(filename_base, 't=', popt[1])  # , 't1/2=', popt[1] * np.log(2))
 
 
 def fit_function(x, *p):
