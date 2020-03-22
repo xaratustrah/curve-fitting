@@ -21,21 +21,27 @@ http://stackoverflow.com/a/11507723/5177935
 
 from iqtools import *
 from scipy.optimize import curve_fit
+import sys
+from io import BytesIO
 
 
 def read_data(filename):
     with open(filename, 'rb') as f:
         ba = f.read()
     str = '<xml>' + ba.decode("utf-8") + '</xml>'
-    str = str.replace('ProfileReadoutTime_yyyyMMdd_hhmmss_zzz', 'ProfileReadoutStartTime')
+    str = str.replace('ProfileReadoutTime_yyyyMMdd_hhmmss_zzz',
+                      'ProfileReadoutStartTime')
     xml_tree_root = et.fromstring(str)
 
     data_array = np.array([])
     for elem in xml_tree_root.iter(tag='ProfileData'):
-        b = np.genfromtxt(BytesIO(elem.text.encode()), delimiter=";", autostrip=True)
-        data_array = np.append(data_array, b[:-1])  # there is one undefined point at the end
+        b = np.genfromtxt(BytesIO(elem.text.encode()),
+                          delimiter=";", autostrip=True)
+        # there is one undefined point at the end
+        data_array = np.append(data_array, b[:-1])
 
-    data_matrix = np.reshape(data_array, (int(np.shape(data_array)[0] / 1280), 1280))
+    data_matrix = np.reshape(
+        data_array, (int(np.shape(data_array)[0] / 1280), 1280))
     data_matrix_mean = np.mean(data_matrix, axis=0)
 
     return data_matrix_mean, data_matrix, data_array
@@ -76,7 +82,8 @@ def fit_and_plot(filename, range, sigma_estimate):
     ax = fig.gca()
     ax.plot(x, y, 'k,', label='Data')
     ax.plot(x[data_cut], fit_function(x[data_cut], *popt), 'r', label='Fit')
-    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(mean, sigma_estimate, area))
+    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(
+        mean, sigma_estimate, area))
     ax.set_title(filename_base)
 
     # Now add the legend with some customizations.
@@ -91,9 +98,9 @@ def fit_and_plot(filename, range, sigma_estimate):
     print(filename_base, ' '.join(map(str, popt)), area)
 
 
-## ====================================
+# ====================================
 # old fit procedures, not used
-## ====================================
+# ====================================
 
 def gauss_function(x, *p):
     A, mu, sigma = p
@@ -129,7 +136,8 @@ def fit_and_plot2(filename, range, sigma_estimate):
     y_cut = y_bg_corr[mean - range:mean + range]
 
     # Try to fit the result
-    popt, pcov = curve_fit(gauss_function, x_cut, y_cut, p0=[1, mean, sigma_estimate])
+    popt, pcov = curve_fit(gauss_function, x_cut, y_cut,
+                           p0=[1, mean, sigma_estimate])
 
     # Get the area
     area = sum(gauss_function(x, *popt))
@@ -141,7 +149,8 @@ def fit_and_plot2(filename, range, sigma_estimate):
     ax.plot(x, y_bg_corr, 'g,', label='Data-BG')
     ax.plot(x_cut, y_cut, 'b', label='Cut')
     ax.plot(x, gauss_function(x, *popt), 'r', label='Fit')
-    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(mean, sigma_estimate, area))
+    ax.set_xlabel('mu = {:0.2e}, sig = {:0.2e}, area = {:0.2e}'.format(
+        mean, sigma_estimate, area))
     ax.set_title(filename_base)
 
     # Now add the legend with some customizations.
